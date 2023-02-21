@@ -1,6 +1,7 @@
 import os
 import pandas as pd 
 import numpy as np
+import matplotlib.pyplot as plt
 
 # Change and update directory
 os.chdir("C:/Users/wickerd/Desktop")
@@ -87,7 +88,7 @@ if items:
 # + 1 includes end date
 round(len(df)/((df.iloc[-1]['Date'] - df.iloc[0]['Date']).days + 1)*100,3)
 
-import matplotlib.pyplot as plt
+
 plt.hist(df['Weight (lbs)'])
 plt.show()
 df.columns
