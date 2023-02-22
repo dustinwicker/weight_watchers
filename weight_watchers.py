@@ -2,6 +2,10 @@ import os
 import pandas as pd 
 import numpy as np
 import matplotlib.pyplot as plt
+import scipy.stats as stats
+# Increase number of rows printed out in console
+pd.options.display.max_rows = 200
+pd.options.display.min_rows = None
 
 # Change and update directory
 os.chdir("C:/Users/wickerd/Desktop")
@@ -88,6 +92,49 @@ if items:
 # + 1 includes end date
 round(len(df)/((df.iloc[-1]['Date'] - df.iloc[0]['Date']).days + 1)*100,3)
 
+from sklearn.linear_model import LinearRegression
+df_dropna_any = df.dropna(how='any')
+
+
+plt.plot(df_dropna_any[['Body fat (%)', 'Weight (lbs)']])
+plt.scatter(df_dropna_any['Weight (lbs)'], df_dropna_any['Body fat (%)'])
+plt.show()
+
+from sklearn.linear_model import LinearRegression
+model = LinearRegression().fit(df_dropna_any['Weight (lbs)'].values.reshape((-1, 1)), df_dropna_any['Body fat (%)'])
+model.score(df_dropna_any['Weight (lbs)'].values.reshape((-1, 1)), df_dropna_any['Body fat (%)'])
+model.intercept_
+model.coef_
+df['Body fat (%)m2'] = df['Body fat (%)']
+df['imputed_or_not'] = 'n'
+df.loc[df['Body fat (%)'].isna(),'imputed_or_not'] = 'y'
+df.loc[df['Body fat (%)'].isna(),'Body fat (%)'] = model.predict(df.loc[df['Body fat (%)'].isna(),'Weight (lbs)'].values.reshape((-1, 1)))
+df
+
+model = LinearRegression().fit(df_dropna_any['Body fat (%)'].values.reshape((-1, 1)), df_dropna_any['Weight (lbs)'])
+model.score(df_dropna_any['Body fat (%)'].values.reshape((-1, 1)), df_dropna_any['Weight (lbs)'])
+model.intercept_
+model.coef_
+
+df.loc[df['imputed_or_not']=='y','Body fat (%)m2'] = model.predict(df.loc[df['imputed_or_not']=='y','Weight (lbs)'].values.reshape((-1, 1)))
+df
+
+df.loc[df['Body fat (%)'].isna()]
+
+plt.plot(df['Weight (lbs)'])
+plt.show()
+
+plt.plot(df['Body fat (%)'])
+plt.show()
+
+df_pr = stats.pearsonr(df['Weight (lbs)'], df['Body fat (%)'])
+df_pr
+df1 = np.polyfit(df['Weight (lbs)'], df['Body fat (%)'],1)#,full=True)
+df2 = np.polyfit(df['Weight (lbs)'], df['Body fat (%)'],2)#,full=True)
+df['df1'] = np.polyval(df1,df['Weight (lbs)'])
+df['df2'] = np.polyval(df2,df['Weight (lbs)'])
+plt.plot(df)
+plt.show()
 
 plt.hist(df['Weight (lbs)'])
 plt.show()
@@ -96,11 +143,15 @@ df.columns
 plt.hist(df['Body fat (%)'])
 plt.show()
 
+df = df.set_index('Date')
+import seaborn as sns
 plt.scatter(df['Weight (lbs)'], df['Body fat (%)'])
+sns.scatterplot(df['Weight (lbs)'], df['Body fat (%)'], hue = df['imputed_or_not'])
+plt.plot(df['df2'])
 plt.show()
 
 
-np.corr(df['Weight (lbs)'], df['Body fat (%)'])
+pd.corr(df['Weight (lbs)'], df['Body fat (%)'])
 
 df['Weight (lbs)'].describe()
 df['Body fat (%)'].describe()
