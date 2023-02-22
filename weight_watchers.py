@@ -1,8 +1,17 @@
+from __future__ import print_function
 import os
 import pandas as pd 
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.stats as stats
+from sklearn.linear_model import LinearRegression
+import os.path
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+from googleapiclient.http import MediaIoBaseDownload
 # Increase number of rows printed out in console
 pd.options.display.max_rows = 200
 pd.options.display.min_rows = None
@@ -13,21 +22,6 @@ os.chdir("C:/Users/wickerd/Desktop")
 files = list(filter(os.path.isfile, os.listdir(os.getcwd())))
 files.sort(key=lambda x: os.path.getmtime(x), reverse=True)
 print(files)
-
-
-
-
-
-from __future__ import print_function
-
-import os.path
-
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
-from googleapiclient.http import MediaIoBaseDownload
 
 # If modifying these scopes, delete the file token.json.
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
@@ -89,27 +83,38 @@ if items:
         print('Download %d%%.' % int(status.progress() * 100))
     df = pd.read_excel('Daily Weight Measurements\xa0.xlsx')
 
-# + 1 includes end date
-round(len(df)/((df.iloc[-1]['Date'] - df.iloc[0]['Date']).days + 1)*100,3)
+# Rename columns for easier use
 
-from sklearn.linear_model import LinearRegression
+df = df.set_index('Date')
+
+# + 1 includes end date
+round(len(df)/((df.index.max() - df.index.min()).days + 1)*100,3)
+
+# Data contains rows (dates) where bf % reading is not taken, weight is taken
 df_dropna_any = df.dropna(how='any')
 
-
-plt.plot(df_dropna_any[['Body fat (%)', 'Weight (lbs)']])
-plt.scatter(df_dropna_any['Weight (lbs)'], df_dropna_any['Body fat (%)'])
-plt.show()
-
-from sklearn.linear_model import LinearRegression
+# Impute missing body fat % values with Linear Regression
 model = LinearRegression().fit(df_dropna_any['Weight (lbs)'].values.reshape((-1, 1)), df_dropna_any['Body fat (%)'])
 model.score(df_dropna_any['Weight (lbs)'].values.reshape((-1, 1)), df_dropna_any['Body fat (%)'])
 model.intercept_
 model.coef_
-df['Body fat (%)m2'] = df['Body fat (%)']
+# ['Body fat (%)m2'] = df['Body fat (%)']
 df['imputed_or_not'] = 'n'
-df.loc[df['Body fat (%)'].isna(),'imputed_or_not'] = 'y'
+df.loc[df['Body fat (%)'].isna(),'imputed_or_not'] = 'bf only'
 df.loc[df['Body fat (%)'].isna(),'Body fat (%)'] = model.predict(df.loc[df['Body fat (%)'].isna(),'Weight (lbs)'].values.reshape((-1, 1)))
 df
+
+# Put in missing date values (where weight and bf were not recorded) - due to traveling, not having weight scale/bf reader
+df = df.reindex(pd.date_range(df.index.min(), df.index.max()))
+df.loc[(df['Body fat (%)'].isna()) & (df['Weight (lbs)'].isna()),'imputed_or_not'] = 'both'
+# Interpolate both weight and bf
+df = df.interpolate(method='linear')
+len(df.loc[df.imputed_or_not=='n'])/len(df)
+
+
+
+
+
 
 model = LinearRegression().fit(df_dropna_any['Body fat (%)'].values.reshape((-1, 1)), df_dropna_any['Weight (lbs)'])
 model.score(df_dropna_any['Body fat (%)'].values.reshape((-1, 1)), df_dropna_any['Weight (lbs)'])
@@ -121,10 +126,26 @@ df
 
 df.loc[df['Body fat (%)'].isna()]
 
+# Show family (when I go home...)
 plt.plot(df['Weight (lbs)'])
 plt.show()
 
+# Show data imputation (give strategy/reason for imputation) on weight and body fat (indivudally and togther)
+# Show effects of data imputation (give visual plot and correlations, statistical tests, normality tests)
+fig, (ax1, ax2, ax3) = plt.subplots(3,1)
+sns.lineplot(data=df.loc[df['imputed_or_not'].isin(['n','bf only']), 'Weight (lbs)'],ax=ax1)
+sns.lineplot(data=df['Weight (lbs)'],ax=ax2)
+#sns.lineplot(data=df['Weight (lbs)'],ax=ax2, marker='o')
+#sns.lineplot(data=df['Weight (lbs)'],hue='imputed_or_not',ax=ax2)
+plt.show()
+
+
+sns.scatterplot(df['Weight (lbs)'], df['Body fat (%)'], hue = df['imputed_or_not'])
+
 plt.plot(df['Body fat (%)'])
+plt.show()
+
+plt.scatter(df_dropna_any['Weight (lbs)'], df_dropna_any['Body fat (%)'])
 plt.show()
 
 df_pr = stats.pearsonr(df['Weight (lbs)'], df['Body fat (%)'])
@@ -147,7 +168,7 @@ df = df.set_index('Date')
 import seaborn as sns
 plt.scatter(df['Weight (lbs)'], df['Body fat (%)'])
 sns.scatterplot(df['Weight (lbs)'], df['Body fat (%)'], hue = df['imputed_or_not'])
-plt.plot(df['df2'])
+sns.scatterplot(df['Weight (lbs)'], df['Body fat (%)'])
 plt.show()
 
 
