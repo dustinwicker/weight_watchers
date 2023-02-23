@@ -5,6 +5,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.stats as stats
 from sklearn.linear_model import LinearRegression
+import io
+import seaborn as sns
 import os.path
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -15,6 +17,7 @@ from googleapiclient.http import MediaIoBaseDownload
 # Increase number of rows printed out in console
 pd.options.display.max_rows = 200
 pd.options.display.min_rows = None
+import random
 
 # Change and update directory
 os.chdir("C:/Users/wickerd/Desktop")
@@ -26,6 +29,7 @@ print(files)
 # If modifying these scopes, delete the file token.json.
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
 def main():
+    global service
     """Shows basic usage of the Drive v3 API.
     Prints the names and ids of the first 10 files the user has access to.
     """
@@ -84,8 +88,12 @@ if items:
     df = pd.read_excel('Daily Weight Measurements\xa0.xlsx')
 
 # Rename columns for easier use
-
 df = df.set_index('Date')
+df = df.rename(columns={'Weight (lbs)':'lbs', 'Body fat (%)':'bf'})
+
+# Create columns
+df['bf_s_w_r'] = df['bf']
+df['bf_s_wo_r'] = df['bf']
 
 # + 1 includes end date
 round(len(df)/((df.index.max() - df.index.min()).days + 1)*100,3)
@@ -93,89 +101,92 @@ round(len(df)/((df.index.max() - df.index.min()).days + 1)*100,3)
 # Data contains rows (dates) where bf % reading is not taken, weight is taken
 df_dropna_any = df.dropna(how='any')
 
-# Impute missing body fat % values with Linear Regression
-model = LinearRegression().fit(df_dropna_any['Weight (lbs)'].values.reshape((-1, 1)), df_dropna_any['Body fat (%)'])
-model.score(df_dropna_any['Weight (lbs)'].values.reshape((-1, 1)), df_dropna_any['Body fat (%)'])
-model.intercept_
-model.coef_
-# ['Body fat (%)m2'] = df['Body fat (%)']
+# Impute missing body fat % values with Linear Regression - 1
+model = LinearRegression().fit(df_dropna_any['lbs'].values.reshape((-1, 1)), df_dropna_any['bf'])
+model.score(df_dropna_any['lbs'].values.reshape((-1, 1)), df_dropna_any['bf'])
+# Model on scatter plot
+model.intercept_, model.coef_
 df['imputed_or_not'] = 'n'
-df.loc[df['Body fat (%)'].isna(),'imputed_or_not'] = 'bf only'
-df.loc[df['Body fat (%)'].isna(),'Body fat (%)'] = model.predict(df.loc[df['Body fat (%)'].isna(),'Weight (lbs)'].values.reshape((-1, 1)))
-df
+df.loc[df['bf'].isna(),'imputed_or_not'] = 'bf_only'
+df.loc[df['bf'].isna(),'bf'] = model.predict(df.loc[df['bf'].isna(),'lbs'].values.reshape((-1, 1)))
+
+# Impute 2
+# Sampling with replacement
+s_w_r = [] 
+for i in range(len(df.loc[df.imputed_or_not == 'bf_only'])):
+    s_w_r.extend(random.sample(list(df_dropna_any['bf']), 1))
+
+# Impute 3
+# Sampling without replacement
+s_wo_r = random.sample(list(df_dropna_any['bf']), 30)
+
+df.bf_s_w_r.fillna(pd.Series(s_w_r))
+df.bf_s_wo_r.fillna(pd.Series(s_wo_r))
+
 
 # Put in missing date values (where weight and bf were not recorded) - due to traveling, not having weight scale/bf reader
 df = df.reindex(pd.date_range(df.index.min(), df.index.max()))
-df.loc[(df['Body fat (%)'].isna()) & (df['Weight (lbs)'].isna()),'imputed_or_not'] = 'both'
+df.loc[(df['bf'].isna()) & (df['lbs'].isna()),'imputed_or_not'] = 'both'
 # Interpolate both weight and bf
 df = df.interpolate(method='linear')
 len(df.loc[df.imputed_or_not=='n'])/len(df)
-df[['Weight (lbs)', 'Body fat (%)']] = df[['Weight (lbs)', 'Body fat (%)']].round(1)
-
-
-
-
-
-
-model = LinearRegression().fit(df_dropna_any['Body fat (%)'].values.reshape((-1, 1)), df_dropna_any['Weight (lbs)'])
-model.score(df_dropna_any['Body fat (%)'].values.reshape((-1, 1)), df_dropna_any['Weight (lbs)'])
-model.intercept_
-model.coef_
-
-df.loc[df['imputed_or_not']=='y','Body fat (%)m2'] = model.predict(df.loc[df['imputed_or_not']=='y','Weight (lbs)'].values.reshape((-1, 1)))
-df
-
-df.loc[df['Body fat (%)'].isna()]
+# Round to keep 1 sig fig (all that is allowable)
+df[['lbs', 'bf']] = df[['lbs', 'bf']].round(1)
 
 # Show family (when I go home...)
-plt.plot(df['Weight (lbs)'])
+plt.plot(df['lbs'])
+plt.axvline(pd.to_datetime('2022-09-02'),color='r')
+plt.axvline(pd.to_datetime('2022-12-14'),color='r')
+plt.axvline(pd.to_datetime('2023-01-01'),color='r')
 plt.show()
 
 # Show data imputation (give strategy/reason for imputation) on weight and body fat (indivudally and togther)
 # Show effects of data imputation (give visual plot and correlations, statistical tests, normality tests)
-fig, (ax1, ax2, ax3) = plt.subplots(3,1)
-sns.lineplot(data=df.loc[df['imputed_or_not'].isin(['n','bf only']), 'Weight (lbs)'],ax=ax1)
-sns.lineplot(data=df['Weight (lbs)'],ax=ax2)
-#sns.lineplot(data=df['Weight (lbs)'],ax=ax2, marker='o')
-#sns.lineplot(data=df['Weight (lbs)'],hue='imputed_or_not',ax=ax2)
-plt.show()
 
-
-sns.scatterplot(df['Weight (lbs)'], df['Body fat (%)'], hue = df['imputed_or_not'])
-
-plt.plot(df['Body fat (%)'])
-plt.show()
-
-plt.scatter(df_dropna_any['Weight (lbs)'], df_dropna_any['Body fat (%)'])
-plt.show()
-
-df_pr = stats.pearsonr(df['Weight (lbs)'], df['Body fat (%)'])
+# Pearson's correlation
+stats.pearsonr(df.loc[df['imputed_or_not'].isin(['n','bf only']),'lbs'], df.loc[df['imputed_or_not'].isin(['n','bf only']),'bf'])
+df_pr = stats.pearsonr(df['lbs'], df['bf'])
 df_pr
-df1 = np.polyfit(df['Weight (lbs)'], df['Body fat (%)'],1)#,full=True)
-df2 = np.polyfit(df['Weight (lbs)'], df['Body fat (%)'],2)#,full=True)
-df['df1'] = np.polyval(df1,df['Weight (lbs)'])
-df['df2'] = np.polyval(df2,df['Weight (lbs)'])
+
+# Poly fit - quadratic bend in correlation plot?
+df1 = np.polyfit(df['lbs'], df['bf'],1)#,full=True)
+df2 = np.polyfit(df['lbs'], df['bf'],2)#,full=True)
+df['df1'] = np.polyval(df1,df['lbs'])
+df['df2'] = np.polyval(df2,df['lbs'])
 plt.plot(df)
 plt.show()
 
-plt.hist(df['Weight (lbs)'])
+# lbs
+df.loc[df['imputed_or_not'].isin(['n','bf only']),'lbs'].describe()
+df['lbs'].describe()
+
+fig, (ax1, ax2) = plt.subplots(2,2)
+sns.lineplot(data=df.loc[df['imputed_or_not'].isin(['n','bf only']), 'lbs'],ax=ax1[0])
+sns.histplot(data=df.loc[df['imputed_or_not'].isin(['n','bf only']), 'lbs'],ax=ax1[1])
+sns.lineplot(data=df['lbs'],ax=ax2[0])
+sns.histplot(data=df['lbs'],ax=ax2[1])
+#sns.lineplot(data=df['lbs'],ax=ax2, marker='o')
+#sns.lineplot(data=df['lbs'],hue='imputed_or_not',ax=ax2)
 plt.show()
-df.columns
 
-plt.hist(df['Body fat (%)'])
+# bf
+df.loc[df['imputed_or_not'].isin(['n']),'bf'].describe()
+df['bf'].describe()
+
+fig, (ax1, ax2, ax3, ax4) = plt.subplots(4,2)
+sns.lineplot(data=df.loc[df['imputed_or_not'].isin(['n']),'bf'],ax=ax1[0])
+sns.histplot(data=df.loc[df['imputed_or_not'].isin(['n']),'bf'],ax=ax1[1])
+sns.lineplot(data=df['bf'],ax=ax2[0])
+sns.histplot(data=df['bf'],ax=ax2[1])
+sns.lineplot(data=df['bf_s_w_r'],ax=ax3[0])
+sns.histplot(data=df['bf_s_w_r'],ax=ax3[1])
+sns.lineplot(data=df['bf_s_wo_r'],ax=ax4[0])
+sns.histplot(data=df['bf_s_wo_r'],ax=ax4[1])
 plt.show()
 
-df = df.set_index('Date')
-import seaborn as sns
-plt.scatter(df['Weight (lbs)'], df['Body fat (%)'])
-sns.scatterplot(df['Weight (lbs)'], df['Body fat (%)'], hue = df['imputed_or_not'])
-sns.scatterplot(df['Weight (lbs)'], df['Body fat (%)'])
+
+sns.scatterplot(df['lbs'], df['bf'], hue = df['imputed_or_not'])
+plt.scatter(df_dropna_any['lbs'], df_dropna_any['bf'])
 plt.show()
-
-
-pd.corr(df['Weight (lbs)'], df['Body fat (%)'])
-
-df['Weight (lbs)'].describe()
-df['Body fat (%)'].describe()
 
 
