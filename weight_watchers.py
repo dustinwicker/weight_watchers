@@ -120,8 +120,8 @@ for i in range(len(df.loc[df.imputed_or_not == 'bf_only'])):
 # Sampling without replacement
 s_wo_r = random.sample(list(df_dropna_any['bf']), 30)
 
-df.bf_s_w_r.fillna(pd.Series(s_w_r))
-df.bf_s_wo_r.fillna(pd.Series(s_wo_r))
+df.bf_s_w_r = df.bf_s_w_r.fillna( pd.Series(data=s_w_r,index= df.loc[df.imputed_or_not == 'bf_only'].index ))
+df.bf_s_wo_r = df.bf_s_wo_r.fillna( pd.Series(data=s_wo_r,index= df.loc[df.imputed_or_not == 'bf_only'].index ))
 
 
 # Put in missing date values (where weight and bf were not recorded) - due to traveling, not having weight scale/bf reader
@@ -135,9 +135,9 @@ df[['lbs', 'bf']] = df[['lbs', 'bf']].round(1)
 
 # Show family (when I go home...)
 plt.plot(df['lbs'])
-plt.axvline(pd.to_datetime('2022-09-02'),color='r')
-plt.axvline(pd.to_datetime('2022-12-14'),color='r')
-plt.axvline(pd.to_datetime('2023-01-01'),color='r')
+#plt.axvline(pd.to_datetime('2022-09-02'),color='r')
+#plt.axvline(pd.to_datetime('2022-12-14'),color='r')
+#plt.axvline(pd.to_datetime('2023-01-01'),color='r')
 plt.show()
 
 # Show data imputation (give strategy/reason for imputation) on weight and body fat (indivudally and togther)
@@ -161,8 +161,8 @@ df.loc[df['imputed_or_not'].isin(['n','bf only']),'lbs'].describe()
 df['lbs'].describe()
 
 fig, (ax1, ax2) = plt.subplots(2,2)
-sns.lineplot(data=df.loc[df['imputed_or_not'].isin(['n','bf only']), 'lbs'],ax=ax1[0])
-sns.histplot(data=df.loc[df['imputed_or_not'].isin(['n','bf only']), 'lbs'],ax=ax1[1])
+sns.lineplot(data=df.loc[df['imputed_or_not'].isin(['n','bf_only']), 'lbs'],ax=ax1[0])
+sns.histplot(data=df.loc[df['imputed_or_not'].isin(['n','bf_only']), 'lbs'],ax=ax1[1])
 sns.lineplot(data=df['lbs'],ax=ax2[0])
 sns.histplot(data=df['lbs'],ax=ax2[1])
 #sns.lineplot(data=df['lbs'],ax=ax2, marker='o')
@@ -172,6 +172,8 @@ plt.show()
 # bf
 df.loc[df['imputed_or_not'].isin(['n']),'bf'].describe()
 df['bf'].describe()
+df['bf_s_w_r'].describe()
+df['bf_s_wo_r'].describe()
 
 fig, (ax1, ax2, ax3, ax4) = plt.subplots(4,2)
 sns.lineplot(data=df.loc[df['imputed_or_not'].isin(['n']),'bf'],ax=ax1[0])
@@ -179,14 +181,22 @@ sns.histplot(data=df.loc[df['imputed_or_not'].isin(['n']),'bf'],ax=ax1[1])
 sns.lineplot(data=df['bf'],ax=ax2[0])
 sns.histplot(data=df['bf'],ax=ax2[1])
 sns.lineplot(data=df['bf_s_w_r'],ax=ax3[0])
-sns.histplot(data=df['bf_s_w_r'],ax=ax3[1])
+sns.histplot(data=df['bf_s_w_r'],ax=ax3[1]) #
 sns.lineplot(data=df['bf_s_wo_r'],ax=ax4[0])
 sns.histplot(data=df['bf_s_wo_r'],ax=ax4[1])
 plt.show()
 
-
-sns.scatterplot(df['lbs'], df['bf'], hue = df['imputed_or_not'])
-plt.scatter(df_dropna_any['lbs'], df_dropna_any['bf'])
+stats.pearsonr(df['lbs'], df['bf_s_w_r'])
+stats.pearsonr(df['lbs'], df['bf_s_wo_r'])
+sns.scatterplot(df['lbs'], df['bf_s_w_r'], hue = df['imputed_or_not'])
+# plt.scatter(df_dropna_any['lbs'], df_dropna_any['bf'])
 plt.show()
+
+# qqplot
+import pylab
+stats.probplot(df['lbs'], dist="norm", plot=pylab)
+pylab.show()
+stats.probplot(df.loc[df['imputed_or_not'].isin(['n','bf_only']),'bf'], dist="norm", plot=pylab)
+pylab.show()
 
 
