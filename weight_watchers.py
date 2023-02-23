@@ -110,6 +110,7 @@ df.loc[(df['Body fat (%)'].isna()) & (df['Weight (lbs)'].isna()),'imputed_or_not
 # Interpolate both weight and bf
 df = df.interpolate(method='linear')
 len(df.loc[df.imputed_or_not=='n'])/len(df)
+df[['Weight (lbs)', 'Body fat (%)']] = df[['Weight (lbs)', 'Body fat (%)']].round(1)
 
 
 
