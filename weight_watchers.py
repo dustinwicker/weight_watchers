@@ -169,6 +169,8 @@ sns.histplot(data=df['lbs'],ax=ax2[1])
 #sns.lineplot(data=df['lbs'],hue='imputed_or_not',ax=ax2)
 plt.show()
 
+
+
 # bf
 df.loc[df['imputed_or_not'].isin(['n']),'bf'].describe()
 df['bf'].describe()
@@ -192,11 +194,30 @@ sns.scatterplot(df['lbs'], df['bf_s_w_r'], hue = df['imputed_or_not'])
 # plt.scatter(df_dropna_any['lbs'], df_dropna_any['bf'])
 plt.show()
 
+
+# Statistical testing
 # qqplot
 import pylab
 stats.probplot(df['lbs'], dist="norm", plot=pylab)
 pylab.show()
-stats.probplot(df.loc[df['imputed_or_not'].isin(['n','bf_only']),'bf'], dist="norm", plot=pylab)
+stats.probplot(df.loc[df['imputed_or_not'].isin(['n','bf_only']),'lbs'], dist="norm", plot=pylab)
 pylab.show()
+sns.boxplot(df.loc[df['imputed_or_not'].isin(['n','bf_only']),'lbs'])
+plt.show()
+df.loc[df['imputed_or_not'].isin(['n','bf_only']),'lbs'].describe()
+stats.shapiro(df.loc[df['imputed_or_not'].isin(['n','bf_only']),'lbs'])
+stats.anderson(df.loc[df['imputed_or_not'].isin(['n','bf_only']),'lbs'], dist='norm')
+stats.kstest(df.loc[df['imputed_or_not'].isin(['n','bf_only']),'lbs'], 'norm')
 
-
+# bf
+plt.plot(df.loc[df['imputed_or_not'].isin(['n']),'bf'])
+#plt.axvline(pd.to_datetime('2022-09-02'),color='r')
+plt.show()
+stats.probplot(df.loc[df['imputed_or_not'].isin(['n']),'bf'], dist="norm", plot=pylab)
+pylab.show()
+sns.boxplot(df.loc[df['imputed_or_not'].isin(['n']),'bf'])
+plt.show()
+df.loc[df['imputed_or_not'].isin(['n']),'lbs'].describe()
+stats.shapiro(df.loc[df['imputed_or_not'].isin(['n']),'bf'])
+stats.anderson(df.loc[df['imputed_or_not'].isin(['n']),'bf'], dist='norm')
+stats.kstest(df.loc[df['imputed_or_not'].isin(['n']),'bf'], 'norm')
